@@ -1,0 +1,125 @@
+plugins {
+	id 'org.springframework.boot' version '4.0.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+
+	id 'org.jetbrains.kotlin.jvm' version '2.2.20'
+	id 'org.jetbrains.kotlin.plugin.spring' version '2.2.20'
+
+	id 'nu.studer.jooq' version '10.2'
+}
+
+def jooqVersion = '3.20.10'
+ext.set('jooq.version', jooqVersion)
+
+group = 'com.mozaiq'
+version = '0.0.1-SNAPSHOT'
+description = 'Mozaiq Server'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// web
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
+	implementation 'org.jetbrains.kotlin:kotlin-reflect'
+
+	// security + oauth2
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'
+
+	// db
+	runtimeOnly 'org.postgresql:postgresql'
+	implementation 'org.springframework.boot:spring-boot-starter-jooq'
+	jooqGenerator 'org.postgresql:postgresql'
+	jooqGenerator "org.jooq:jooq-codegen:${jooqVersion}"
+	jooqGenerator "org.jooq:jooq-meta:${jooqVersion}"
+
+	// migration
+	implementation 'org.springframework.boot:spring-boot-starter-flyway' // required from spring boot 4.x
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+
+	// ops
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	// test
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	testImplementation platform("org.testcontainers:testcontainers-bom:1.20.4")
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+kotlin {
+	compilerOptions {
+		freeCompilerArgs.addAll '-Xjsr305=strict', '-Xannotation-default-target=param-property'
+	}
+}
+
+jooq {
+	// jOOQ 버전은 Spring Boot BOM
+	configurations {
+		main {  // task: generateJooq
+			generateSchemaSourceOnCompilation = false
+			generationTool {
+				logging = org.jooq.meta.jaxb.Logging.WARN
+
+				jdbc {
+					driver = 'org.postgresql.Driver'
+					url = "jdbc:postgresql://${System.getenv('DB_HOST') ?: 'localhost'}:${System.getenv('DB_PORT') ?: '5432'}/${System.getenv('DB_NAME') ?: 'mozaiqdb'}"
+					user = System.getenv('DB_USER') ?: 'mozaiq'
+					password = System.getenv('DB_PASSWORD') ?: 'mozaiq'
+				}
+
+				generator {
+					name = 'org.jooq.codegen.KotlinGenerator'
+
+					database {
+						name = 'org.jooq.meta.postgres.PostgresDatabase'
+						inputSchema = 'public'
+						includes = '.*'
+						excludes = 'flyway_schema_history'
+					}
+
+					generate {
+						pojos = true
+						records = true
+						daos = false
+						fluentSetters = true
+						springAnnotations = true
+						kotlinNotNullPojoAttributes = true
+						deprecated = false                // deprecated 코드 생성 안함
+					}
+
+					target {
+						packageName = 'com.mozaiq.jooq'
+						directory = 'build/generated-src/jooq/main'
+					}
+				}
+			}
+		}
+	}
+}
+
+// 컴파일에 생성코드 포함
+sourceSets {
+	main {
+		kotlin.srcDirs += 'build/generated-src/jooq/main'
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

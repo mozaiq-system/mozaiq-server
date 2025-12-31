@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: mozaiq-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: mozaiq
+      POSTGRES_PASSWORD: mozaiq
+      POSTGRES_DB: mozaiqdb
+    volumes:
+      - mozaiq-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mozaiq -d mozaiqdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mozaiq-postgres-data:

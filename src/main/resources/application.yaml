@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: mozaiq
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mozaiqdb}
+    username: ${DB_USER:mozaiq}
+    password: ${DB_PASSWORD:mozaiq}
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    default-schema: public
+    schemas: public
+    baseline-on-migrate: true
+
+  jooq:
+    sql-dialect: POSTGRES
+
+logging:
+  level:
+    org.jooq.tools.LoggerListener: DEBUG
+    org.flywaydb: DEBUG
